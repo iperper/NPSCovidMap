@@ -1,0 +1,3 @@
+# Ignore the secret info (e.g API keys)
+#
+secrets.json
