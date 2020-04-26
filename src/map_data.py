@@ -46,11 +46,16 @@ def get_waypoint_info(park_id, DB):
     if park_info is None:
         logging.error("Park ID: %s is not in DB", park_id)
         return None
+
+    if park_info[2] == '' or park_info[3] == '':
+        logging.warning("Park has no long lat, skipping")
+        return None
     
     info["name"] = park_info[1]
     info["lon"] = park_info[2]
     info["lat"] = park_info[3]
     info["url"] = park_info[4]
+
 
     # If no alert for part, assume open
     if alert_info is None:
@@ -94,10 +99,10 @@ if __name__ == "__main__":
     logging.info("Running map_data.py")
 
     # # Load API key from file
-    # with open(key_file) as f_secret:
+    # with open(key_file,  'r', encoding='utf-8') as f_secret:
     #     api_key = json.load(f_secret)["nps_api"]
 
-    with open(park_file) as f_codes:
+    with open(park_file, 'r', encoding='utf-8') as f_codes:
         park_dict = json.load(f_codes)
     park_codes = list(park_dict.keys())
 
@@ -107,11 +112,12 @@ if __name__ == "__main__":
     map_info = []
     for park in park_codes:
         info = get_waypoint_info(park, DB)
-        map_info.append(info)
+        if info is not None:
+            map_info.append(info)
 
     logging.info("Created map data. Now generating map")
 
-    make_map(map_info, map_file)
+    make_map(map_info, str(map_file))
         
 
 

@@ -137,10 +137,10 @@ if __name__ == "__main__":
     logging.info("Running")
 
     # Load API key from file
-    with open(key_file) as f_secret:
+    with open(key_file, 'r', encoding='utf-8') as f_secret:
         api_key = json.load(f_secret)["nps_api"]
 
-    with open(park_file) as f_codes:
+    with open(park_file, 'r', encoding='utf-8') as f_codes:
         park_dict = json.load(f_codes)
     park_codes = list(park_dict.keys())
 
