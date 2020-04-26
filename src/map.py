@@ -41,9 +41,9 @@ def make_map(data, filename):
     # Display m
     m.save(filename) #filename should have .hmtl
 
+if __name__ == "__main__":
+    #Test Data
+    data = [{"name": "Sunnyside Farm", "lon": -90.36971, "lat": 38.350260, "status": "other", "url": "cat-bounce.com", "desc": "I love Isaac, but he loves me more"}]
 
-#Test Data
-data = [{"name": "Sunnyside Farm", "lon": -90.36971, "lat": 38.350260, "status": "other", "url": "cat-bounce.com", "desc": "I love Isaac, but he loves me more"}]
-
-make_map(data,'my_map.html')
-#To view, open file in browser
+    make_map(data,'my_map.html')
+    #To view, open file in browser

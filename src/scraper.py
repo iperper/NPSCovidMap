@@ -64,16 +64,31 @@ def get_all_alerts(n=1000):
     alert_args = {"parkCode": "", 'stateCode': "", "limit": str(n), "start":"1" }
     # Note the long timeout due to large request
     try:
-        return get_response('alerts', alert_args, timeout=2)
+        return get_response('alerts', alert_args, timeout=n)
+    except requests.exceptions.ReadTimeout as e:
+        logging.error(e)
+        return None
+
+def get_alerts(park_codes):
+    """
+    Returns alert info for each park listed in park_codes
+    """
+    alert_args = {"parkCode": ",".join(park_codes), "limit": 5*str(len(park_codes))}
+    try:
+        return get_response('alerts', alert_args, timeout=20*len(park_codes))
     except requests.exceptions.ReadTimeout as e:
         logging.error(e)
         return None
 
 def get_all_parks(n=1000):
+    """
+    Gets info from all the parks. 
+    TODO: Currently takes too long to run.  Running individually
+    """
     park_args = {"parkCode": "", 'stateCode': "", "limit": str(n), "start":"1" }
     # Note the long timeout due to large request
     try:
-        return get_response('parks', park_args, timeout=str(n))
+        return get_response('parks', park_args, timeout=n)
     except requests.exceptions.ReadTimeout as e:
         logging.error(e)
         return None
@@ -84,7 +99,7 @@ def get_parks(park_codes):
     """
     park_args = {"parkCode": ",".join(park_codes), "limit": str(len(park_codes))}
     try:
-        return get_response('parks', park_args, timeout=3+1*len(park_codes))
+        return get_response('parks', park_args, timeout=3+5*len(park_codes))
     except requests.exceptions.ReadTimeout as e:
         logging.error(e)
         return None
@@ -95,7 +110,9 @@ def parse_parks_to_DB(data, DB):
     """
     for i, park in enumerate(data):
         try:
-            DB.insert_park(park["parkCode"], park["name"], park["longitude"], park["latitude"], park["url"])
+            resp = DB.insert_park(park["parkCode"], park["name"], park["longitude"], park["latitude"], park["url"])
+            if resp == 0:
+                logging.info("%s already in DB", park["parkCode"])
         except sqlite3.Error as e:
             logging.error(e)
             logging.error("Only added first %d entries from data.", i-1)
@@ -107,14 +124,16 @@ def parse_alerts_to_DB(data, DB):
     """
     for i, alert in enumerate(data):
         try:
-            DB.insert_alert(alert["parkCode"], alert["title"], alert["category"], alert["description"])
+            resp = DB.insert_alert(alert["parkCode"], alert["title"], alert["category"], alert["description"])
+            if resp == 0:
+                logging.info("%s already in DB", alert["parkCode"])
         except sqlite3.Error as e:
             logging.error(e)
             logging.error("Only added first %d entries from data.", i-1)
     return True
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     logging.info("Running")
 
     # Load API key from file
@@ -123,13 +142,38 @@ if __name__ == "__main__":
 
     with open(park_file) as f_codes:
         park_dict = json.load(f_codes)
-
     park_codes = list(park_dict.keys())
-    
-    # r = get_all_alerts(5)
-    # r2 = get_all_parks(5)
-    # logging.info("Got alert")
 
+    # Create DB object
     DB = ParkDB(alert_db)
 
+    # Get all the Parks into the database
+    #  Minimize API calls without calling all parks at once
+    start = 0
+    missed = set()
+    group_size = 10
+    park_codes_grouped = [park_codes[group_size*i:min(group_size*i+10, len(park_codes))] for i in range(start, len(park_codes)//group_size + 1)]
+    # for i, group in enumerate(park_codes_grouped):
+    #     logging.info("Getting Park Info for group %d", i)
+    #     park_info = get_parks(group)
+    #     if park_info is not None:
+    #         logging.info("Getting info succeeded for %d", i)
+    #         parse_parks_to_DB(park_info.json()['data'], DB)
+    #     else:
+    #         logging.info("Getting info failed for %d", i)
+    #         missed.add(i)
+    # logging.info("Missed parks %s", str(missed))
+    # logging.info("Added non-missed parks to parks table")
 
+    # for i, group in enumerate(park_codes_grouped):
+    #     logging.info("Getting Park Info for group %d", i)
+    #     alert_info = get_alerts(group)
+    #     if alert_info is not None:
+    #         logging.info("Getting info succeeded for %d", i)
+    #         parse_alerts_to_DB(alert_info.json()['data'], DB)
+    #     else:
+    #         logging.info("Getting info failed for %d", i)
+    #         missed.add(i)
+
+    # logging.info("Missed alerts from parks: %s", str(missed))
+    # logging.info("Added non-missed alerts to alerts table")

@@ -77,26 +77,54 @@ class ParkDB:
         """
         Creates new entry into park table.
         """
+        # If already in DB, don't re-add
+        if self.get_park_info(code) is not None:
+            return 0
         sql = """INSERT INTO parks (code, name, lon, lat, url)
             VALUES(?,?,?,?,?);"""
         args = (code, name, lon, lat, url)
         self.execute(sql, args)
+        return 1
 
     def insert_alert(self, code, title, alert_type, description):
         """
         Creates new entry into alert table
         """
+        # If already in DB, don't re-add
+        if self.get_alert_info(code, title) is not None:
+            return 0
         sql = """INSERT INTO alerts (code, title, alert_type, description)
             VALUES(?,?,?,?);"""
         args = (code, title, alert_type, description)
         self.execute(sql, args)
+        return 1
+    
+    def get_park_info(self, park_id):
+        """ Returns park info in DB given park_id.  None if no park exists. """
+        sql = """SELECT * FROM parks WHERE code = ?;"""
+        response = self.execute(sql, (park_id, ), fetch="one")
+        return response
+   
+    def get_alert_info(self, park_id, title=None):
+        """
+        Returns alert info in DB given park_id.  None if no alert exists.
+        If title is specifid, return one repsonse. If no title, then returns
+        all alerts associated with park_id
+        """
+        if title is not None:
+            sql = """SELECT * FROM alerts WHERE code = ? AND title = ?;"""
+            response = self.execute(sql, (park_id, title), fetch="one")
+        else:
+            sql = """SELECT * FROM alerts WHERE code = ?;"""
+            response = self.execute(sql, (park_id,), fetch="all")
+        return response
 
     def get_parks_table(self):
-        sql = """SELECT * FROM parks"""
+        sql = """SELECT * FROM parks;"""
         return self.execute(sql, fetch="all")
 
     def get_alerts_table(self):
-        sql = """SELECT * from alerts"""
+        sql = """SELECT * from alerts;"""
         return self.execute(sql, fetch="all")
 
     def get_all_tables(self):
