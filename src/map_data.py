@@ -128,7 +128,9 @@ if __name__ == "__main__":
 
     logging.info("Created map data. Now generating map")
 
-    make_map(map_info, str(map_file))
+    for f, info in {"closed": closed_map_info, "open": open_map_info, "other": other_map_info}.items():
+        filename = "{}_{}.html".format(str(map_file)[:-5], f)
+        make_map(info, filename)
         
 
 
