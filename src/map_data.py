@@ -9,6 +9,7 @@ Creates list of map markers at each national park.
 import json
 import pathlib
 import logging
+import re
 
 from db_handler import ParkDB, sqlite3
 from map import make_map
@@ -51,10 +52,10 @@ def get_waypoint_info(park_id, DB):
         logging.warning("Park has no long lat, skipping")
         return None
     
-    info["name"] = park_info[1]
+    info["name"] = park_info[1].replace("`","")
     info["lon"] = park_info[2]
     info["lat"] = park_info[3]
-    info["url"] = park_info[4]
+    info["url"] = park_info[4].replace("`","")
 
 
     # If no alert for part, assume open
@@ -65,32 +66,32 @@ def get_waypoint_info(park_id, DB):
     else:
         # Multiple possible alerts for given park
         closure_alerts = get_closure_alerts(alert_info)
-        closed_words = {"closure", "closed", "close"}
+        closed_words = {"closure", "closed", "close", "closing"}
         open_words = {"open"}
         includes_open, includes_closed = False, False
         for alert in closure_alerts:
             description = alert[3]
             # If any of the open words are in the description, then the park 
             # could be open. 
-            if any(word in open_words for word in description.split()):
+            if any(word in open_words for word in description.lower().split()):
                 includes_open = True
             # If any of the closed words are in description, but open words weren't
             # then status is closed.
-            if any(word in closed_words for word in description.split()):
+            if any(word in closed_words for word in description.lower().split()):
                 includes_closed = True
             
         if includes_open and not includes_closed:
             # If only open, then open
             info["status"] = "open"
-            info["desc"] = "\n".join([alert[3] for alert in closure_alerts])
+            info["desc"] = "\n".join([alert[3].replace("`", "") for alert in closure_alerts])
         elif not includes_open and includes_closed:
             # If only closed, then closed
             info["status"] = "closed"
-            info["desc"] = "\n".join([alert[3] for alert in closure_alerts])
+            info["desc"] = "\n".join([alert[3].replace("`", "") for alert in closure_alerts])
         else:
             # If both open and closed, or neither, then other
             info["status"] = "other"
-            info["desc"] = "\n".join([alert[3] for alert in closure_alerts])
+            info["desc"] = "\n".join([alert[3].replace("`", "") for alert in closure_alerts])
 
         return info
 
@@ -109,11 +110,21 @@ if __name__ == "__main__":
     # Create DB object
     DB = ParkDB(alert_db)
 
-    map_info = []
-    for park in park_codes:
+    closed_map_info = []
+    open_map_info = []
+    other_map_info = []
+    for i, park in enumerate(park_codes):
         info = get_waypoint_info(park, DB)
         if info is not None:
-            map_info.append(info)
+            if info["status"] == "closed":
+                closed_map_info.append(info)
+            elif info["status"] == "open":
+                open_map_info.append(info)
+            elif info["status"] == "other":
+                other_map_info.append(info)
+
+    map_info = closed_map_info + open_map_info + other_map_info
+    print(len(map_info))
 
     logging.info("Created map data. Now generating map")
 
