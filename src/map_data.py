@@ -70,7 +70,7 @@ def get_waypoint_info(park_id, DB):
         open_words = {"open"}
         includes_open, includes_closed = False, False
         for alert in closure_alerts:
-            description = alert[3]
+            description = (alert[1] + " " + alert[3]).replace(",", " ").replace(".", " ").replace(":", " ").replace(";", " ")
             # If any of the open words are in the description, then the park 
             # could be open. 
             if any(word in open_words for word in description.lower().split()):

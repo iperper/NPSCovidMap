@@ -16,7 +16,6 @@ def make_map(data, filename):
               tiles = 'Stamen Terrain')
 
     # Add markers 
-    data = data[0:358]
     for park in data:
         status = park["status"]
         name = park["name"]
