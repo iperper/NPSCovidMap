@@ -18,6 +18,7 @@ base_dir = pathlib.Path(__file__).parent.absolute()
 key_file = base_dir / "../keys/secrets.json"
 alert_db = base_dir / "../db/park_alerts.db"
 park_file = base_dir /"../db/park_codes.json"
+national_park_file = base_dir /"../db/national_park_codes.json"
 
 def get_response(endpoint, args, timeout=0.001):
     '''
@@ -104,13 +105,13 @@ def get_parks(park_codes):
         logging.error(e)
         return None
 
-def parse_parks_to_DB(data, DB):
+def parse_parks_to_DB(data, DB, replace=False):
     """
     Adds all the parks to to the db
     """
     for i, park in enumerate(data):
         try:
-            resp = DB.insert_park(park["parkCode"], park["name"], park["longitude"], park["latitude"], park["url"])
+            resp = DB.insert_park(park["parkCode"], park["name"], park["longitude"], park["latitude"], park["url"], replace)
             if resp == 0:
                 logging.info("%s already in DB", park["parkCode"])
         except sqlite3.Error as e:
@@ -118,13 +119,13 @@ def parse_parks_to_DB(data, DB):
             logging.error("Only added first %d entries from data.", i-1)
     return True
 
-def parse_alerts_to_DB(data, DB):
+def parse_alerts_to_DB(data, DB, replace=False):
     """
     Adds all the alerts to to the db
     """
     for i, alert in enumerate(data):
         try:
-            resp = DB.insert_alert(alert["parkCode"], alert["title"], alert["category"], alert["description"])
+            resp = DB.insert_alert(alert["parkCode"], alert["title"], alert["category"], alert["description"], replace)
             if resp == 0:
                 logging.info("%s already in DB", alert["parkCode"])
         except sqlite3.Error as e:
@@ -134,7 +135,15 @@ def parse_alerts_to_DB(data, DB):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    logging.info("Running")
+    logging.info("Running scraper")
+
+    national_parks_only = True
+    update_park_info = False # True if running code for first time
+    update_alert_info = False
+    replace_data = True # If True, the same park info or alert info will overwrite, needed if updating
+
+    if national_parks_only:
+        park_file = national_park_file
 
     # Load API key from file
     with open(key_file, 'r', encoding='utf-8') as f_secret:
@@ -153,27 +162,32 @@ if __name__ == "__main__":
     missed = set()
     group_size = 10
     park_codes_grouped = [park_codes[group_size*i:min(group_size*i+10, len(park_codes))] for i in range(start, len(park_codes)//group_size + 1)]
-    # for i, group in enumerate(park_codes_grouped):
-    #     logging.info("Getting Park Info for group %d", i)
-    #     park_info = get_parks(group)
-    #     if park_info is not None:
-    #         logging.info("Getting info succeeded for %d", i)
-    #         parse_parks_to_DB(park_info.json()['data'], DB)
-    #     else:
-    #         logging.info("Getting info failed for %d", i)
-    #         missed.add(i)
-    # logging.info("Missed parks %s", str(missed))
-    # logging.info("Added non-missed parks to parks table")
+    
+    # Update Park Info (Lon, Lat, URL, etc) if needed (first time)
+    if update_park_info:
+        for i, group in enumerate(park_codes_grouped):
+            logging.info("Getting Park Info for group %d", i)
+            park_info = get_parks(group)
+            if park_info is not None:
+                logging.info("Getting info succeeded for %d", i)
+                parse_parks_to_DB(park_info.json()['data'], DB, replace_data)
+            else:
+                logging.info("Getting info failed for %d", i)
+                missed.add(i)
+        logging.info("Missed parks %s", str(missed))
+        logging.info("Added non-missed parks to parks table")
 
-    # for i, group in enumerate(park_codes_grouped):
-    #     logging.info("Getting Park Info for group %d", i)
-    #     alert_info = get_alerts(group)
-    #     if alert_info is not None:
-    #         logging.info("Getting info succeeded for %d", i)
-    #         parse_alerts_to_DB(alert_info.json()['data'], DB)
-    #     else:
-    #         logging.info("Getting info failed for %d", i)
-    #         missed.add(i)
+    # Gather Alerts
+    if update_alert_info:
+        for i, group in enumerate(park_codes_grouped):
+            logging.info("Getting Park Info for group %d", i)
+            alert_info = get_alerts(group)
+            if alert_info is not None:
+                logging.info("Getting info succeeded for %d", i)
+                parse_alerts_to_DB(alert_info.json()['data'], DB, replace_data)
+            else:
+                logging.info("Getting info failed for %d", i)
+                missed.add(i)
 
-    # logging.info("Missed alerts from parks: %s", str(missed))
-    # logging.info("Added non-missed alerts to alerts table")
+        logging.info("Missed alerts from parks: %s", str(missed))
+        logging.info("Added non-missed alerts to alerts table")

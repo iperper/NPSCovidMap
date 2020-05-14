@@ -73,29 +73,44 @@ class ParkDB:
             print(e)
             print("Could not create tables. Check db files.")
 
-    def insert_park(self, code, name, lon, lat, url):
+    def insert_park(self, code, name, lon, lat, url, replace=False):
         """
         Creates new entry into park table.
         """
-        # If already in DB, don't re-add
-        if self.get_park_info(code) is not None:
+        park_info = self.get_park_info(code)
+        if (not replace) and (park_info is not None):
+            # If already in DB, don't re-add
             return 0
-        sql = """INSERT INTO parks (code, name, lon, lat, url)
-            VALUES(?,?,?,?,?);"""
-        args = (code, name, lon, lat, url)
+        
+        if (not replace) or (replace and park_info is None):
+            sql = """INSERT INTO parks (code, name, lon, lat, url)
+                VALUES(?,?,?,?,?);"""
+            args = (code, name, lon, lat, url)
+        else:
+            sql = """UPDATE parks SET code = ?, name = ?, lon = ?, lat = ?, url = ?
+                WHERE code = ?;"""
+            args = (code, name, lon, lat, url, code)
+
         self.execute(sql, args)
         return 1
 
-    def insert_alert(self, code, title, alert_type, description):
+    def insert_alert(self, code, title, alert_type, description, replace=False):
         """
         Creates new entry into alert table
         """
-        # If already in DB, don't re-add
-        if self.get_alert_info(code, title) is not None:
+        alert_info = self.get_alert_info(code, title)
+        if not replace and alert_info is not None:
+            # If already in DB, don't re-add
             return 0
-        sql = """INSERT INTO alerts (code, title, alert_type, description)
-            VALUES(?,?,?,?);"""
-        args = (code, title, alert_type, description)
+        
+        if (not replace) or (replace and alert_info is None):
+            sql = """INSERT INTO alerts (code, title, alert_type, description)
+                VALUES(?,?,?,?);"""
+            args = (code, title, alert_type, description)
+        else:
+            sql = """UPDATE alerts SET code = ?, title = ?, alert_type = ?, description = ?
+                WHERE code = ? AND title = ?;"""
+            args = (code, title, alert_type, description, code, title)
         self.execute(sql, args)
         return 1
     
